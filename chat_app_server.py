@@ -1,10 +1,11 @@
 from simple_websocket_server import WebSocketServer, WebSocket
+import json
 
 # Change to your IP
-hostname="10.0.0.78"
-# hostname="192.168.1.64"
+# hostname="10.0.0.78"
+hostname="192.168.1.64"
 # Data Structure
-# { address: (uniqueId,name)}
+# { ipadd: (uniqueId,name,wsaddress)}
 clients = {}
 
 class ChatServer(WebSocket):
@@ -17,39 +18,65 @@ class ChatServer(WebSocket):
     def handle(self):
         userId = None
         try:
-            message = self.data
-            print("There is something")
-            if message is None:
+            rawMessage = self.data
+            wsRequestData=json.loads(rawMessage)
+            requestType = wsRequestData['type']
+            data = wsRequestData['data']
+            print(f"The message is as: {rawMessage}")
+            if wsRequestData is None:
                 return
-            elif message.startswith("register:"):
-                userId, userName = message.split(":")[1].split(",")
+            elif requestType == "register":
+                print("Registering User")
+                userId= data['uid']
+                userName = data['name']
                 for key,value in clients.items():
                     if(key != self.address[0]):
-                        value[2].send_message(f"active_user:{userId},{userName}")
-                clients[self.address[0]+userId] = (userId, userName,self)
-            elif message.startswith("unregister:"):
-                userId = message.split(":")[1]
+                        messageData = {
+                            'type':'activeUser',
+                            'data':{
+                                'uid':userId,
+                                'name':userName,
+                                'isOnline':True
+                            },
+                        }
+                        json_object = json.dumps(messageData, indent = 4) 
+                        value[2].send_message(json_object)
+                clients[self.address[0]] = (userId, userName,self)
+
+            elif requestType == "listUsers":
+                print("Listing Users")
+                userId = data['uid']
+                for key,value in clients.items():
+                    print(f"The saved id {value[0]} and current userID {userId}")
+                    if(value[0] != userId):
+                        messageData = {
+                            'type':'activeUser',
+                            'data':{
+                                'uid':value[0],
+                                'name':value[1],
+                                'isOnline':True
+                            },
+                        }
+                        json_object = json.dumps(messageData, indent = 4)
+                        self.send_message(json_object)
+            elif requestType == "textMessage":
+                recipientId = data['receiverId']
+                for key,value in clients.items():
+                    if(value[0] == recipientId):
+                        value[2].send_message(self.data)
+            elif wsRequestData.startswith("unregister:"):
+                userId = wsRequestData.split(":")[1]
                 clients.pop(self.address, None)
                 for key,value in clients.items():
                     self.send_message(f"inactive_user:{value[0]},{value[1]}")
-            elif message.startswith("message:"):
-                recipientId,senderId,message = message.split(":")[1].split(",")
+            elif wsRequestData.startswith("message:"):
+                recipientId,senderId,wsRequestData = wsRequestData.split(":")[1].split(",")
                 # recipient = clients.get(recipientId)
                 for key,value in clients.items():
                     # if(value[0] == recipientId):
                     print("Sending message")
-                    value[2].send_message(f"senderId:{senderId},message:{message}")
-
-            elif message.startswith("list users"):
-                print("listing users")
-                userId = message.split(":")[1]
-                print(f"Listing users {userId} {message}")
-                for key,value in clients.items():
-                    if(key != self.address[0+userId]):
-                        print("Seding User fom list")
-                        self.send_message(f"active_user:{value[0]},{value[1]}")
+                    value[2].send_message(f"senderId:{senderId},message:{wsRequestData}")
         except Exception as e:
             print(f"Error is: {e}")
-print("hlello world")
 server = WebSocketServer(hostname,8000, ChatServer)
 server.serve_forever()
