@@ -96,6 +96,19 @@ class ChatServer(WebSocket):
                 for key,value in clients.items():
                     if(value[0] == recipientId):
                         value[2].send_message(self.data)
+            elif requestType == "videoCallStarted":
+                print("Video call started")
+                recipientId = data['receiverId']
+                for key,value in clients.items():
+                    if(value[0] == recipientId):
+                        value[2].send_message(self.data)
+
+            elif requestType == "videoCallAccepted":
+                print("Video call accepted")
+                
+            elif requestType == "videoCallEnded":
+                print("Video call ended")
+
             # TODO: ADD UNREGISTER FEATURE 
             # elif requestType == "unregister":
             #     print("UnRegistering User")
