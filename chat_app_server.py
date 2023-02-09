@@ -2,19 +2,50 @@ from simple_websocket_server import WebSocketServer, WebSocket
 import json
 
 # Change to your IP
-# hostname="10.0.0.78"
-hostname="192.168.1.64"
+hostname="10.0.0.78"
+# hostname="192.168.1.64"
 # Data Structure
 # { ipadd: (uniqueId,name,wsaddress)}
 clients = {}
 
 class ChatServer(WebSocket):
     def connected(self):
-        print(self.address, 'connected')
+        print('connected')
+        # alreadyRegistered= clients.has_key(self.address[0])
+        # if alreadyRegistered:
+        #     data=clients[self.address[0]]
+        #     userId= data[0]
+        #     userName = data[1]
+        #     for key,value in clients.items():
+        #         if(key != self.address[0]):
+        #             messageData = {
+        #                 'type':'activeUser',
+        #                 'data':{
+        #                     'uid':userId,
+        #                     'name':userName,
+        #                     'isOnline':True
+        #                 },
+        #             }
+        #             json_object = json.dumps(messageData, indent = 4) 
+        #             value[2].send_message(json_object)
 
     def handle_close(self):
-        print(self.address, 'closed')
-
+        print("Disconnected")
+        ipadd = self.address[0]
+        uid = clients[ipadd][0]
+        name = clients[ipadd][1]
+        del clients[ipadd]
+        for key,value in clients.items():
+            messageData = {
+                'type':'activeUser',
+                'data':{
+                    'uid':uid,
+                    'name':name,
+                    'isOnline':False
+                },
+            }
+            json_object = json.dumps(messageData, indent = 4) 
+            value[2].send_message(json_object)
     def handle(self):
         userId = None
         try:
@@ -59,24 +90,33 @@ class ChatServer(WebSocket):
                         }
                         json_object = json.dumps(messageData, indent = 4)
                         self.send_message(json_object)
+
             elif requestType == "textMessage":
                 recipientId = data['receiverId']
                 for key,value in clients.items():
                     if(value[0] == recipientId):
                         value[2].send_message(self.data)
-            elif wsRequestData.startswith("unregister:"):
-                userId = wsRequestData.split(":")[1]
-                clients.pop(self.address, None)
-                for key,value in clients.items():
-                    self.send_message(f"inactive_user:{value[0]},{value[1]}")
-            elif wsRequestData.startswith("message:"):
-                recipientId,senderId,wsRequestData = wsRequestData.split(":")[1].split(",")
-                # recipient = clients.get(recipientId)
-                for key,value in clients.items():
-                    # if(value[0] == recipientId):
-                    print("Sending message")
-                    value[2].send_message(f"senderId:{senderId},message:{wsRequestData}")
+            # TODO: ADD UNREGISTER FEATURE 
+            # elif requestType == "unregister":
+            #     print("UnRegistering User")
+            #     userId= data['uid']
+            #     userName = data['name']
+            #     for key,value in clients.items():
+            #         if(key != self.address[0]):
+            #             messageData = {
+            #                 'type':'activeUser',
+            #                 'data':{
+            #                     'uid':userId,
+            #                     'name':userName,
+            #                     'isOnline':True
+            #                 },
+            #             }
+            #             json_object = json.dumps(messageData, indent = 4) 
+            #             value[2].send_message(json_object)
+            #     clients[self.address[0]] = (userId, userName,self)
         except Exception as e:
             print(f"Error is: {e}")
+
+print("hello boos")
 server = WebSocketServer(hostname,8000, ChatServer)
 server.serve_forever()
