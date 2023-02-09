@@ -2,8 +2,8 @@ from simple_websocket_server import WebSocketServer, WebSocket
 import json
 
 # Change to your IP
-hostname="10.0.0.78"
-# hostname="192.168.1.64"
+# hostname="10.0.0.78"
+hostname="192.168.1.64"
 # Data Structure
 # { ipadd: (uniqueId,name,wsaddress)}
 clients = {}
@@ -105,8 +105,24 @@ class ChatServer(WebSocket):
 
             elif requestType == "videoCallAccepted":
                 print("Video call accepted")
+                callerId = data['callerId']
+                for key,value in clients.items():
+                    if(value[0] == callerId):
+                        value[2].send_message(self.data)
+
+            elif requestType == "videoCallRejected":
+                print("Video call rejected")
+                callerId = data['callerId']
+                for key,value in clients.items():
+                    if(value[0] == callerId):
+                        value[2].send_message(self.data)
                 
             elif requestType == "videoCallEnded":
+                print("Video call ended")
+                callerId = data['callerId']
+                for key,value in clients.items():
+                    if(value[0] == callerId):
+                        value[2].send_message(self.data)
                 print("Video call ended")
 
             # TODO: ADD UNREGISTER FEATURE 
